@@ -1,0 +1,25 @@
+{
+  "name": "msg-dataaccess-base",
+  "version": "0.0.1",
+  "description": "A nodejs module that can quickly connect multiple databases and develop rapidly.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhkumsg/msg-dataaccess-base.git"
+  },
+  "keywords": [
+    "msg",
+    "nodejs",
+    "mysql",
+    "mssql"
+  ],
+  "author": "moshenggui",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zhkumsg/msg-dataaccess-base/issues"
+  },
+  "homepage": "https://github.com/zhkumsg/msg-dataaccess-base#readme"
+}
