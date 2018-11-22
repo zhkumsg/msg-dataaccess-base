@@ -1,6 +1,6 @@
 {
   "name": "msg-dataaccess-base",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A nodejs module that can quickly connect multiple databases and develop rapidly.",
   "main": "index.js",
   "scripts": {
@@ -14,7 +14,8 @@
     "msg",
     "nodejs",
     "mysql",
-    "mssql"
+    "mssql",
+    "dataaccess"
   ],
   "author": "moshenggui",
   "license": "ISC",
@@ -26,5 +27,8 @@
     "mssql": "^4.2.1",
     "mysql": "^2.16.0",
     "node-uuid": "^1.4.8"
-  }
+  },
+  "__npminstall_done": "Wed Nov 21 2018 18:12:25 GMT+0800 (中国标准时间)",
+  "_from": "msg-dataaccess-base@0.0.3",
+  "_resolved": "http://registry.npm.taobao.org/msg-dataaccess-base/download/msg-dataaccess-base-0.0.3.tgz"
 }

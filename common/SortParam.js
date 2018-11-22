@@ -1,15 +1,20 @@
-//定义DsParams实体类（key-value）
+const MType = require("./MType");
+const Direction = require("./Direction")
+
+//定义SortParam实体类（排序字段）
 const propertys = [
-    "paramsname",
-    "paramsvalue"
+    "Type",
+    "Field",
+    "SortDirection"
 ];
 
-class DsParams {
+class SortParam {
     constructor() {
         propertys.forEach(name => { this[name] = undefined; });
         this.set(arguments[0]);
-        if (this.paramsname === undefined) { this.paramsname = ""; }
-        if (this.paramsvalue === undefined) { this.paramsvalue = null; }
+        if (this.Type === undefined) { this.Type = MType.Mstring; }
+        if (this.Field === undefined) { this.Field = ""; }
+        if (this.SortDirection === undefined) { this.SortDirection = Direction.ASC; }
     }
     get(key) {
         return this[key];
@@ -26,4 +31,4 @@ class DsParams {
 }
 
 
-module.exports = DsParams;
+module.exports = SortParam;

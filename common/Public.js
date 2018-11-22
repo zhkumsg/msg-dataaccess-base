@@ -1,7 +1,9 @@
+const TableCfg = require("../../../table.config");
 const OperationEnum = require("./OperationEnum");
 const TransParams = require("./TransParams");
 const DsParams = require("./DsParams");
 const uuid = require("node-uuid");
+const { DbType } = require("../../../web.config");
 
 var Public = {
   /**
@@ -14,17 +16,14 @@ var Public = {
     let pkNames = "";
     if (obj instanceof Array) {
       if (obj.length > 0) {
-        tableName =
-          global["msg-dataaccess-base-tablecfg"][obj[0].constructor.name].name;
-        pkNames =
-          global["msg-dataaccess-base-tablecfg"][obj[0].constructor.name].pk;
+        tableName = TableCfg[obj[0].constructor.name].name;
+        pkNames = TableCfg[obj[0].constructor.name].pk;
       } else {
         return null;
       }
     } else {
-      tableName =
-        global["msg-dataaccess-base-tablecfg"][obj.constructor.name].name;
-      pkNames = global["msg-dataaccess-base-tablecfg"][obj.constructor.name].pk;
+      tableName = TableCfg[obj.constructor.name].name;
+      pkNames = TableCfg[obj.constructor.name].pk;
       obj = [obj];
     }
     switch (operationType) {
@@ -215,18 +214,14 @@ var Public = {
               );
               if (filter.join("").indexOf("EB_LASTMODIFY_DATETIME") === -1) {
                 //改动点三：添加最后修改时间判断
-                if (
-                  global["msg-dataaccess-base-webconfig"].DbType === "MSSQL"
-                ) {
+                if (DbType === "MSSQL") {
                   filter.push(
                     " and datediff(S, EB_LASTMODIFY_DATETIME, @" +
                       index +
                       "_currentLastTime_" +
                       ") = 0 "
                   );
-                } else if (
-                  global["msg-dataaccess-base-webconfig"].DbType === "MYSQL"
-                ) {
+                } else if (DbType === "MYSQL") {
                   filter.push(
                     " and TIMESTAMPDIFF(SECOND, EB_LASTMODIFY_DATETIME, @" +
                       index +

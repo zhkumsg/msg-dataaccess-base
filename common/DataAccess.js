@@ -1,5 +1,10 @@
 const mssql = require("mssql");
 const mysql = require("mysql");
+const {
+  DbConnectionString,
+  MySqlConnectionCfg,
+  DbType
+} = require("../../../web.config");
 const TransParams = require("./TransParams");
 
 class DataAccess {
@@ -7,30 +12,32 @@ class DataAccess {
     try {
       this._constructor(config);
     } catch (err) {
+      console.log("底层异常：", err);
       throw err;
     }
   }
 
   _constructor(config) {
     try {
-      if (global["msg-dataaccess-base-webconfig"].DbType === "MSSQL") {
+      if (DbType === "MSSQL") {
         if (!global["globalConnection"]) {
           if (config !== undefined) {
             mssql.close();
           }
           global["globalConnection"] = mssql.connect(
-            config || global["msg-dataaccess-base-webconfig"].DbConnectionString
+            config || DbConnectionString
           );
         }
         this.connection = global["globalConnection"];
-      } else if (global["msg-dataaccess-base-webconfig"].DbType === "MYSQL") {
+      } else if (DbType === "MYSQL") {
         if (!global["globalConnection"]) {
           global["globalConnection"] = mysql.createConnection(
-            config || global["msg-dataaccess-base-webconfig"].MySqlConnectionCfg
+            config || MySqlConnectionCfg
           );
           global["globalConnection"].connect();
           global["globalConnection"].config.queryFormat = this.mysqlQueryFormat;
           global["globalConnection"].on("error", err => {
+            console.log("连接异常：", err.code);
             if (err.code === "PROTOCOL_CONNECTION_LOST") {
               global["globalConnection"] = null;
               this._constructor(config);
@@ -49,10 +56,9 @@ class DataAccess {
    * @param {*} sqlstring
    */
   GetTable(sqlstring) {
-    console.log(sqlstring, global["msg-dataaccess-base-webconfig"].DbType);
     return new Promise((resolve, reject) => {
       try {
-        if (global["msg-dataaccess-base-webconfig"].DbType === "MSSQL") {
+        if (DbType === "MSSQL") {
           this.connection
             .then(pool => {
               return pool.request().query(sqlstring);
@@ -66,7 +72,7 @@ class DataAccess {
           mssql.on("error", err => {
             reject(err);
           });
-        } else if (global["msg-dataaccess-base-webconfig"].DbType === "MYSQL") {
+        } else if (DbType === "MYSQL") {
           this.connection.query(sqlstring, (err, result) => {
             if (err) {
               reject(err.message);
@@ -99,7 +105,7 @@ class DataAccess {
   RunQuery(sqlstring) {
     return new Promise((resolve, reject) => {
       try {
-        if (global["msg-dataaccess-base-webconfig"].DbType === "MSSQL") {
+        if (DbType === "MSSQL") {
           this.connection.then(pool => {
             let transaction = pool.transaction();
             transaction.begin(err => {
@@ -118,7 +124,7 @@ class DataAccess {
           mssql.on("error", err => {
             reject(err);
           });
-        } else if (global["msg-dataaccess-base-webconfig"].DbType === "MYSQL") {
+        } else if (DbType === "MYSQL") {
           this.connection.beginTransaction(err => {
             this.connection.query(sqlstring, (err, result) => {
               if (err) {
@@ -147,7 +153,7 @@ class DataAccess {
     }
     return new Promise((resolve, reject) => {
       try {
-        if (global["msg-dataaccess-base-webconfig"].DbType === "MSSQL") {
+        if (DbType === "MSSQL") {
           this.connection.then(pool => {
             let transaction = pool.transaction();
             transaction.begin(err => {
@@ -172,7 +178,7 @@ class DataAccess {
           mssql.on("error", err => {
             reject(err);
           });
-        } else if (global["msg-dataaccess-base-webconfig"].DbType === "MYSQL") {
+        } else if (DbType === "MYSQL") {
           let queryObj = {};
           transParams.l_dp.forEach(dp => {
             if (dp.paramsvalue instanceof Date) {
@@ -292,7 +298,7 @@ class DataAccess {
   datapagerSql(pageno, pagesize, sqlstr, sp) {
     if (sqlstr) {
       if (pageno > 0 && pagesize > 0 && sp) {
-        if (global["msg-dataaccess-base-webconfig"].DbType === "MSSQL") {
+        if (DbType === "MSSQL") {
           return (
             "select TMPTABLE2.* from (select TMPTABLE1.*,ROW_NUMBER() OVER(ORDER BY TMPTABLE1." +
             sp.Field +
@@ -305,7 +311,7 @@ class DataAccess {
             " and " +
             (pageno * pagesize).toString()
           );
-        } else if (global["msg-dataaccess-base-webconfig"].DbType === "MYSQL") {
+        } else if (DbType === "MYSQL") {
           return (
             sqlstr +
             "order by " +
