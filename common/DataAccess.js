@@ -8,7 +8,6 @@ class DataAccess {
 		try {
 			this._constructor(config);
 		} catch (err) {
-			console.log('底层异常：', err);
 			throw err;
 		}
 	}
@@ -27,9 +26,7 @@ class DataAccess {
 				if (!global['globalConnection']) {
 					global['globalConnection'] = mysql.createConnection(config || MySqlConnectionCfg);
 					global['globalConnection'].connect();
-					global['globalConnection'].config.queryFormat = this.mysqlQueryFormat;
 					global['globalConnection'].on('error', err => {
-						console.log('连接异常：', err.code);
 						if (err.code === 'PROTOCOL_CONNECTION_LOST') {
 							global['globalConnection'] = null;
 							this._constructor(config);
@@ -48,7 +45,6 @@ class DataAccess {
 	 * @param {*} sqlstring
 	 */
 	GetTable(sqlstring) {
-		console.log('执行查询：', sqlstring);
 		return new Promise((resolve, reject) => {
 			try {
 				if (DbType === 'MSSQL') {
@@ -68,7 +64,6 @@ class DataAccess {
 				} else if (DbType === 'MYSQL') {
 					this.connection.query(sqlstring, (err, result) => {
 						if (err) {
-							console.log(err);
 							reject(err.message);
 						} else {
 							let _result = [];
@@ -134,7 +129,15 @@ class DataAccess {
 						if (err) {
 							reject(err.message);
 						} else {
-							resolve(result.affectedRows > 0);
+							if (result instanceof Array) {
+								let flag = true;
+								result.forEach(item => {
+									flag = flag && item.affectedRows > 0;
+								});
+								resolve(flag);
+							} else {
+								resolve(result.affectedRows > 0);
+							}
 						}
 					});
 				}
@@ -187,8 +190,9 @@ class DataAccess {
 						}
 						queryObj[dp.paramsname] = dp.paramsvalue;
 					});
+					transParams.sql = this.mysqlQueryFormat(transParams.sql, queryObj);
 					// this.connection.beginTransaction(err => {
-					// 	this.connection.query(transParams.sql, queryObj, (err, result) => {
+					// 	this.connection.query(transParams.sql, (err, result) => {
 					// 		if (err) {
 					// 			this.connection.rollback();
 					// 			reject(err.message);
@@ -198,13 +202,20 @@ class DataAccess {
 					// 		}
 					// 	});
 					// });
-					console.log('执行操作：', transParams.sql);
-					this.connection.query(transParams.sql, queryObj, (err, result) => {
+					this.connection.query(transParams.sql, (err, result) => {
 						if (err) {
-							console.log(err);
+							console.log(new Date(), err);
 							reject(err.message);
 						} else {
-							resolve(result.affectedRows > 0);
+							if (result instanceof Array) {
+								let flag = true;
+								result.forEach(item => {
+									flag = flag && item.affectedRows > 0;
+								});
+								resolve(flag);
+							} else {
+								resolve(result.affectedRows > 0);
+							}
 						}
 					});
 				}
@@ -342,7 +353,11 @@ class DataAccess {
 		if (!values) return query;
 		return query.replace(/\@(\w+)/g, (txt, key) => {
 			if (values.hasOwnProperty(key)) {
-				return this.escape(values[key]);
+				if (typeof values[key] === 'number') {
+					return values[key];
+				} else {
+					return "'" + values[key] + "'";
+				}
 			}
 			return txt;
 		});
