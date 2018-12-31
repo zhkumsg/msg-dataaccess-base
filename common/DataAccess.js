@@ -5,36 +5,40 @@ const TransParams = require('./TransParams');
 
 class DataAccess {
 	constructor(config) {
+		if (DbType === 'MSSQL') {
+			this.mssqlConnect(config);
+		} else if (DbType === 'MYSQL') {
+			//todo none
+		}
+	}
+
+	/**
+	 * sql server 全局连接
+	 * @param {*} config 
+	 */
+	mssqlConnect(config) {
 		try {
-			this._constructor(config);
+			if (!global['globalConnection']) {
+				if (config !== undefined) {
+					mssql.close();
+				}
+				global['globalConnection'] = mssql.connect(config || DbConnectionString);
+			}
+			this.connection = global['globalConnection'];
 		} catch (err) {
 			throw err;
 		}
 	}
 
-	_constructor(config) {
+	/**
+	 * mysql 独立连接
+	 * @param {*} config 
+	 */
+	mysqlConnect(config) {
 		try {
-			if (DbType === 'MSSQL') {
-				if (!global['globalConnection']) {
-					if (config !== undefined) {
-						mssql.close();
-					}
-					global['globalConnection'] = mssql.connect(config || DbConnectionString);
-				}
-				this.connection = global['globalConnection'];
-			} else if (DbType === 'MYSQL') {
-				if (!global['globalConnection']) {
-					global['globalConnection'] = mysql.createConnection(config || MySqlConnectionCfg);
-					global['globalConnection'].connect();
-					global['globalConnection'].on('error', err => {
-						if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-							global['globalConnection'] = null;
-							this._constructor(config);
-						}
-					});
-				}
-				this.connection = global['globalConnection'];
-			}
+			this.connection = mysql.createConnection(config || MySqlConnectionCfg);
+			this.connection.connect();
+			this.connection.config.queryFormat = this.mysqlQueryFormat;
 		} catch (err) {
 			throw err;
 		}
@@ -62,6 +66,7 @@ class DataAccess {
 						reject(err);
 					});
 				} else if (DbType === 'MYSQL') {
+					this.mysqlConnect();
 					this.connection.query(sqlstring, (err, result) => {
 						if (err) {
 							reject(err.message);
@@ -79,7 +84,9 @@ class DataAccess {
 							});
 							resolve(_result);
 						}
+						this.connection.end();
 					});
+
 				}
 			} catch (error) {
 				reject(error);
@@ -114,31 +121,26 @@ class DataAccess {
 						reject(err);
 					});
 				} else if (DbType === 'MYSQL') {
-					// this.connection.beginTransaction(err => {
-					//   this.connection.query(sqlstring, (err, result) => {
-					//     if (err) {
-					//       this.connection.rollback();
-					//       reject(err.message);
-					//     } else {
-					//       this.connection.commit();
-					//       resolve(result.affectedRows > 0);
-					//     }
-					//   });
-					// });
-					this.connection.query(sqlstring, (err, result) => {
-						if (err) {
-							reject(err.message);
-						} else {
-							if (result instanceof Array) {
-								let flag = true;
-								result.forEach(item => {
-									flag = flag && item.affectedRows > 0;
-								});
-								resolve(flag);
+					this.mysqlConnect();
+					this.connection.beginTransaction(err => {
+						this.connection.query(sqlstring, (err, result) => {
+							if (err) {
+								this.connection.rollback();
+								reject(err.message);
 							} else {
-								resolve(result.affectedRows > 0);
+								this.connection.commit();
+								let flag = true;
+								if (result instanceof Array) {
+									result.forEach(item => {
+										flag = flag && item.affectedRows > 0;
+									});
+								} else {
+									flag = result.affectedRows > 0;
+								}
+								resolve(flag);
 							}
-						}
+							this.connection.end();
+						});
 					});
 				}
 			} catch (error) {
@@ -183,6 +185,7 @@ class DataAccess {
 						reject(err);
 					});
 				} else if (DbType === 'MYSQL') {
+					this.mysqlConnect();
 					let queryObj = {};
 					transParams.l_dp.forEach(dp => {
 						if (dp.paramsvalue instanceof Date) {
@@ -190,33 +193,25 @@ class DataAccess {
 						}
 						queryObj[dp.paramsname] = dp.paramsvalue;
 					});
-					transParams.sql = this.mysqlQueryFormat(transParams.sql, queryObj);
-					// this.connection.beginTransaction(err => {
-					// 	this.connection.query(transParams.sql, (err, result) => {
-					// 		if (err) {
-					// 			this.connection.rollback();
-					// 			reject(err.message);
-					// 		} else {
-					// 			this.connection.commit();
-					// 			resolve(result.affectedRows > 0);
-					// 		}
-					// 	});
-					// });
-					this.connection.query(transParams.sql, (err, result) => {
-						if (err) {
-							console.log(new Date(), err);
-							reject(err.message);
-						} else {
-							if (result instanceof Array) {
-								let flag = true;
-								result.forEach(item => {
-									flag = flag && item.affectedRows > 0;
-								});
-								resolve(flag);
+					this.connection.beginTransaction(err => {
+						this.connection.query(transParams.sql, queryObj, (err, result) => {
+							if (err) {
+								this.connection.rollback();
+								reject(err.message);
 							} else {
-								resolve(result.affectedRows > 0);
+								this.connection.commit();
+								let flag = true;
+								if (result instanceof Array) {
+									result.forEach(item => {
+										flag = flag && item.affectedRows > 0;
+									});
+								} else {
+									flag = result.affectedRows > 0;
+								}
+								resolve(flag);
 							}
-						}
+							this.connection.end();
+						});
 					});
 				}
 			} catch (error) {
@@ -353,11 +348,7 @@ class DataAccess {
 		if (!values) return query;
 		return query.replace(/\@(\w+)/g, (txt, key) => {
 			if (values.hasOwnProperty(key)) {
-				if (typeof values[key] === 'number') {
-					return values[key];
-				} else {
-					return "'" + values[key] + "'";
-				}
+				return this.escape(values[key]);
 			}
 			return txt;
 		});
