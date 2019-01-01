@@ -32,16 +32,19 @@ class DataAccess {
 
 	/**
 	 * mysql 独立连接
-	 * @param {*} config 
 	 */
-	mysqlConnect(config) {
-		try {
-			this.connection = mysql.createConnection(config || MySqlConnectionCfg);
-			this.connection.connect();
-			this.connection.config.queryFormat = this.mysqlQueryFormat;
-		} catch (err) {
-			throw err;
-		}
+	mysqlConnect() {
+		return new Promise((resolve, reject) => {
+			try {
+				let connection = mysql.createConnection(MySqlConnectionCfg);
+				connection.connect();
+				connection.config.queryFormat = this.mysqlQueryFormat;
+				resolve(connection)
+			} catch (err) {
+				reject(err);
+				throw err;
+			}
+		});
 	}
 
 	/**
@@ -66,27 +69,27 @@ class DataAccess {
 						reject(err);
 					});
 				} else if (DbType === 'MYSQL') {
-					this.mysqlConnect();
-					this.connection.query(sqlstring, (err, result) => {
-						if (err) {
-							reject(err.message);
-						} else {
-							let _result = [];
-							result.forEach(item => {
-								let obj = {};
-								for (let name in item) {
-									if (item[name] instanceof Date) {
-										item[name] = this.RemoveDateMsec(item[name]);
+					this.mysqlConnect().then(connection => {
+						connection.query(sqlstring, (err, result) => {
+							if (err) {
+								reject(err.message);
+							} else {
+								let _result = [];
+								result.forEach(item => {
+									let obj = {};
+									for (let name in item) {
+										if (item[name] instanceof Date) {
+											item[name] = this.RemoveDateMsec(item[name]);
+										}
+										obj[name] = item[name];
 									}
-									obj[name] = item[name];
-								}
-								_result.push(obj);
-							});
-							resolve(_result);
-						}
-						this.connection.end();
+									_result.push(obj);
+								});
+								resolve(_result);
+							}
+							connection.end();
+						});
 					});
-
 				}
 			} catch (error) {
 				reject(error);
@@ -121,25 +124,26 @@ class DataAccess {
 						reject(err);
 					});
 				} else if (DbType === 'MYSQL') {
-					this.mysqlConnect();
-					this.connection.beginTransaction(err => {
-						this.connection.query(sqlstring, (err, result) => {
-							if (err) {
-								this.connection.rollback();
-								reject(err.message);
-							} else {
-								this.connection.commit();
-								let flag = true;
-								if (result instanceof Array) {
-									result.forEach(item => {
-										flag = flag && item.affectedRows > 0;
-									});
+					this.mysqlConnect().then(connection => {
+						connection.beginTransaction(err => {
+							connection.query(sqlstring, (err, result) => {
+								if (err) {
+									connection.rollback();
+									reject(err.message);
 								} else {
-									flag = result.affectedRows > 0;
+									connection.commit();
+									let flag = true;
+									if (result instanceof Array) {
+										result.forEach(item => {
+											flag = flag && item.affectedRows > 0;
+										});
+									} else {
+										flag = result.affectedRows > 0;
+									}
+									resolve(flag);
 								}
-								resolve(flag);
-							}
-							this.connection.end();
+								connection.end();
+							});
 						});
 					});
 				}
@@ -185,32 +189,33 @@ class DataAccess {
 						reject(err);
 					});
 				} else if (DbType === 'MYSQL') {
-					this.mysqlConnect();
-					let queryObj = {};
-					transParams.l_dp.forEach(dp => {
-						if (dp.paramsvalue instanceof Date) {
-							dp.paramsvalue = this.RemoveDateMsec(dp.paramsvalue);
-						}
-						queryObj[dp.paramsname] = dp.paramsvalue;
-					});
-					this.connection.beginTransaction(err => {
-						this.connection.query(transParams.sql, queryObj, (err, result) => {
-							if (err) {
-								this.connection.rollback();
-								reject(err.message);
-							} else {
-								this.connection.commit();
-								let flag = true;
-								if (result instanceof Array) {
-									result.forEach(item => {
-										flag = flag && item.affectedRows > 0;
-									});
-								} else {
-									flag = result.affectedRows > 0;
-								}
-								resolve(flag);
+					this.mysqlConnect().then(connection => {
+						let queryObj = {};
+						transParams.l_dp.forEach(dp => {
+							if (dp.paramsvalue instanceof Date) {
+								dp.paramsvalue = this.RemoveDateMsec(dp.paramsvalue);
 							}
-							this.connection.end();
+							queryObj[dp.paramsname] = dp.paramsvalue;
+						});
+						connection.beginTransaction(err => {
+							connection.query(transParams.sql, queryObj, (err, result) => {
+								if (err) {
+									connection.rollback();
+									reject(err.message);
+								} else {
+									connection.commit();
+									let flag = true;
+									if (result instanceof Array) {
+										result.forEach(item => {
+											flag = flag && item.affectedRows > 0;
+										});
+									} else {
+										flag = result.affectedRows > 0;
+									}
+									resolve(flag);
+								}
+								connection.end();
+							});
 						});
 					});
 				}

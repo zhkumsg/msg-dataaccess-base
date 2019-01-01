@@ -1,6 +1,6 @@
 {
   "name": "msg-dataaccess-base",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "A nodejs module that can quickly connect multiple databases and develop rapidly.",
   "main": "index.js",
   "scripts": {
